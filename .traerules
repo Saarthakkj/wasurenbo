@@ -1,0 +1,98 @@
+{
+  "project": "wasurebo",
+  "description": "Extracts bookmarks from X.com, stores them, and displays a random one daily.",
+  "workflow": {
+    "steps": [
+      {
+        "step": 1,
+        "action": "navigate",
+        "target": "https://x.com/i/bookmarks",
+        "method": "automatic",
+        "notes": "Navigates to the bookmarks page on X.com. Assumes user is logged in."
+      },
+      {
+        "step": 2,
+        "action": "extract",
+        "method": "DOM",
+        "targets": [
+          {
+            "name": "contents",
+            "selector": ".tweet-text, .post-content",
+            "description": "Extracts the text content of each bookmark."
+          },
+          {
+            "name": "urls",
+            "selector": "a[href]",
+            "attribute": "href",
+            "description": "Extracts URLs from bookmark posts."
+          },
+          {
+            "name": "images",
+            "selector": "img[src]",
+            "attribute": "src",
+            "description": "Extracts image URLs if present in bookmarks.",
+            "optional": true
+          }
+        ],
+        "notes": "Uses DOM selectors to scrape bookmark data. Adjust selectors based on X.com's actual HTML structure."
+      },
+      {
+        "step": 3,
+        "action": "scroll",
+        "method": "simulate",
+        "trigger": "dynamic_load",
+        "condition": "new_elements_loaded",
+        "timeout": 2000,
+        "description": "Simulates scrolling to load more bookmarks dynamically. Waits 2 seconds between scrolls to allow content to load."
+      },
+      {
+        "step": 4,
+        "action": "loop",
+        "target": "steps[2-3]",
+        "condition": "until_all_loaded",
+        "max_iterations": 100,
+        "notes": "Repeats extraction and scrolling until no new bookmarks are loaded or max iterations reached."
+      },
+      {
+        "step": 5,
+        "action": "store",
+        "format": "csv",
+        "alternative_format": "json",
+        "destination": "local_storage",
+        "filename": "bookmarks_{timestamp}.csv",
+        "fields": ["content", "url", "image_url", "timestamp"],
+        "notes": "Stores extracted bookmarks in a CSV file locally, with an option for JSON. Timestamp ensures unique filenames."
+      },
+      {
+        "step": 6,
+        "action": "schedule",
+        "frequency": "daily",
+        "task": "fetch_random",
+        "source": "stored_bookmarks",
+        "notes": "Fetches a random bookmark from the stored file once a day."
+      },
+      {
+        "step": 7,
+        "action": "render",
+        "element": "div",
+        "position": "side",
+        "content": "random_bookmark",
+        "styles": {
+          "position": "fixed",
+          "right": "10px",
+          "top": "50%",
+          "width": "300px",
+          "background": "#f0f0f0",
+          "padding": "10px"
+        },
+        "notes": "Adds a side div to display the random bookmark on the page."
+      }
+    ]
+  },
+  "settings": {
+    "authentication": "user_session",
+    "scroll_delay": 2000,
+    "max_bookmarks": null,
+    "error_handling": "log_and_continue"
+  }
+}
