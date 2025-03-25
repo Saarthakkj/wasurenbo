@@ -10,28 +10,12 @@
     "tabs"
   ],
   "host_permissions": [
-    "https://x.com/*"
+    "https://*.x.com/*",
+    "https://*.twitter.com/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["bookmark-display.js"]
-    },
-    {
-      "matches": ["https://x.com/i/bookmarks", "https://twitter.com/i/bookmarks"],
-      "js": ["content.js"]
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["indexedDBStorage.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -44,5 +28,22 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["bookmark-display.js"]
+    },
+    {
+      "matches": ["*://*.x.com/i/bookmarks", "*://*.twitter.com/i/bookmarks"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/logo.jpg"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

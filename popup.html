@@ -3,7 +3,11 @@
 <head>
     <title>Wasurenbo</title>
     <style>
-        body { width: 200px; padding: 10px; }
+        body { 
+            width: 200px; 
+            padding: 10px; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
         button { 
             width: 100%; 
             padding: 8px;
@@ -17,14 +21,55 @@
         button:hover {
             background-color: #0c85d0;
         }
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin-right: 10px;
+        }
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .title {
+            flex-grow: 1;
+        }
+        .footer {
+            margin-top: 15px;
+            font-size: 11px;
+            color: #657786;
+            text-align: center;
+        }
+        .footer a {
+            color: #1DA1F2;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
-    <h3>Wasurenbo</h3>
-    <p>Your daily bookmark reminder</p>
+    <div class="header">
+        <a href="https://x.com/curlydazai" target="_blank" class="logo">
+            <img src="icons/logo.jpg" alt="Wasurenbo Logo">
+        </a>
+        <div class="title">
+            <h3 style="margin: 0;">Wasurenbo</h3>
+            <p style="margin: 0; font-size: 12px;">Your daily bookmark reminder</p>
+        </div>
+    </div>
     
     <button id="toggleBookmark">Toggle Bookmark Display</button>
-    <button id="refreshBookmark">Get New Random Bookmark</button>
+    <button id="refreshBookmark">View Another Tweet</button>
+    
+    <div class="footer">
+        Made by <a href="https://x.com/curlydazai" target="_blank">@curlydazai</a>
+    </div>
     
     <script src="popup.js"></script>
 </body>

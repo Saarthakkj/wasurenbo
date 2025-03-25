@@ -1,22 +1,22 @@
 document.addEventListener('DOMContentLoaded', function() {
-  // Toggle bookmark display button
-  document.getElementById('toggleBookmark').addEventListener('click', function() {
+  const toggleBtn = document.getElementById('toggleBookmark');
+  const refreshBtn = document.getElementById('refreshBookmark');
+  
+  // Toggle bookmark visibility
+  toggleBtn.addEventListener('click', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleBookmarkVisibility'});
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleBookmark'}, function(response) {
+        console.log('Toggle bookmark response:', response);
+      });
     });
   });
   
-  // Get new random bookmark button
-  document.getElementById('refreshBookmark').addEventListener('click', function() {
-    chrome.runtime.sendMessage({action: 'getRandomBookmark'}, function(response) {
-      if (response && response.success) {
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          chrome.tabs.sendMessage(tabs[0].id, {
-            action: 'displayBookmark',
-            bookmark: response.bookmark
-          });
-        });
-      }
+  // Refresh bookmark
+  refreshBtn.addEventListener('click', function() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'refreshBookmark'}, function(response) {
+        console.log('Refresh bookmark response:', response);
+      });
     });
   });
 });
