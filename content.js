@@ -28,7 +28,11 @@ class DataExtractor {
             // Target the tweet URL (which appears in the timestamp link)
             tweetUrl: 'a[href*="/status/"]',
             // Target actual tweet images, not profile pictures
-            tweetImages: 'div[data-testid="tweetPhoto"] img'
+            tweetImages: 'div[data-testid="tweetPhoto"] img',
+            // Target retweet information
+            retweetIndicator: '[data-testid="socialContext"]',
+            // Target quoted tweet container
+            quotedTweet: '[data-testid="tweet"] [role="link"][tabindex="0"]'
         };
         this.extractedData = [];
     }
@@ -51,20 +55,48 @@ class DataExtractor {
                 const tweetImageElement = bookmark.querySelector(this.selectors.tweetImages);
                 const imageUrl = tweetImageElement ? tweetImageElement.src : '';
                 
+                // Check if this is a retweet
+                const retweetElement = bookmark.querySelector(this.selectors.retweetIndicator);
+                const isRetweet = retweetElement !== null;
+                const retweetedBy = isRetweet ? retweetElement.textContent.trim() : '';
+                
+                // Check if this is a quoted tweet
+                const quotedTweetElement = bookmark.querySelector(this.selectors.quotedTweet);
+                const hasQuotedTweet = quotedTweetElement !== null;
+                
+                // Extract quoted tweet info if present
+                let quotedTweet = null;
+                if (hasQuotedTweet) {
+                    const quotedTextElement = quotedTweetElement.querySelector(this.selectors.tweetText);
+                    const quotedUrlElement = quotedTweetElement.querySelector(this.selectors.tweetUrl);
+                    const quotedImageElement = quotedTweetElement.querySelector(this.selectors.tweetImages);
+                    
+                    quotedTweet = {
+                        content: quotedTextElement ? quotedTextElement.textContent.trim() : '',
+                        url: quotedUrlElement ? quotedUrlElement.href : '',
+                        image_url: quotedImageElement ? quotedImageElement.src : ''
+                    };
+                }
+                
                 // Only add if we have at least content or URL
                 if (content || tweetUrl) {
                     extractedData.push({
                         content,
                         url: tweetUrl,
                         image_url: imageUrl,
-                        timestamp: new Date().toISOString()
+                        timestamp: new Date().toISOString(),
+                        isRetweet,
+                        retweetedBy,
+                        hasQuotedTweet,
+                        quotedTweet
                     });
                 }
             });
             
+            console.log(`Extracted ${extractedData.length} bookmarks`);
             return extractedData;
         } catch (error) {
-            console.error(`[DATA EXTRACTION ERROR] ${new Date().toISOString()} - ${error.message}`);
+            console.error('Error extracting data:', error);
             return [];
         }
     }
@@ -74,80 +106,78 @@ class DataExtractor {
 class DynamicLoader {
     constructor(dataExtractor) {
         this.dataExtractor = dataExtractor;
-        this.scrollDelay = 2000;
-        this.maxIterations = 1000; // Increased from 500 to 1000
-        this.currentIteration = 0;
-        this.patienceCounter = 0; // Add patience counter
-        this.maxPatience = 5; // Try 5 times before giving up
+        this.scrollDelay = 5000; // Increased from 3000 to 5000 ms to avoid rate limiting
+        this.maxIterations = 20; // Reduced from 50 to 20
+        this.patienceThreshold = 5;
     }
 
-    async loadAllContent() {
-        try {
-            let previousHeight;
-            let newHeight = document.body.scrollHeight;
-            let allData = [];
-            let statusDiv = document.querySelector('[data-wasurenbo-status]');
-            let lastDataLength = 0;
+    async loadBookmarks() {
+        console.log('Starting bookmark extraction...');
+        let previousHeight = 0;
+        let patience = 0;
+        let bookmarks = [];
+        let iteration = 0;
 
-            do {
+        while (iteration < this.maxIterations && patience < this.patienceThreshold) {
+            iteration++;
+            
+            // Extract bookmarks from current view
+            const newBookmarks = await this.dataExtractor.extract();
+            
+            // Merge with existing bookmarks (avoiding duplicates)
+            bookmarks = this.mergeBookmarks(bookmarks, newBookmarks);
+            
+            console.log('Current data: ', bookmarks);
+            
+            // Scroll down to load more content
+            await this.scrollPage();
+            
+            // Wait for content to load - increased delay
+            await new Promise(resolve => setTimeout(resolve, this.scrollDelay));
+            
+            // Check if we've reached the end
+            const newHeight = document.documentElement.scrollHeight;
+            console.log(`Iteration ${iteration}: Previous height = ${previousHeight}, New height = ${newHeight}, Patience = ${patience}`);
+            
+            if (newHeight === previousHeight) {
+                patience++;
+            } else {
+                patience = 0;
                 previousHeight = newHeight;
-                
-                // Extract data from current view
-                const currentData = await this.dataExtractor.extract();
-                
-                // Log the data for debugging
-                console.log('Current data:', currentData);
-                
-                if (currentData && currentData.length > 0) {
-                    // Filter out duplicates before adding to allData
-                    const newItems = currentData.filter(item => 
-                        !allData.some(existing => existing.url === item.url)
-                    );
-                    
-                    allData = [...allData, ...newItems];
-                    
-                    // Reset patience if we found new data
-                    if (allData.length > lastDataLength) {
-                        this.patienceCounter = 0;
-                        lastDataLength = allData.length;
-                    }
-                }
-                
-                if (statusDiv) {
-                    statusDiv.textContent = `Extracting bookmarks... (${allData.length} found)`;
-                }
-                
-                // Scroll and wait for new content
-                window.scrollBy(0, window.innerHeight);
-                
-                // Wait for content to load
-                await new Promise(resolve => setTimeout(resolve, this.scrollDelay));
-                
-                newHeight = document.body.scrollHeight;
-                this.currentIteration++;
-                
-                // If height didn't change, increment patience counter
-                if (newHeight === previousHeight) {
-                    this.patienceCounter++;
-                } else {
-                    // Reset patience if we scrolled successfully
-                    this.patienceCounter = 0;
-                }
-                
-                console.log(`Iteration ${this.currentIteration}: Previous height = ${previousHeight}, New height = ${newHeight}, Patience = ${this.patienceCounter}`);
-                
-            } while ((newHeight > previousHeight || this.patienceCounter < this.maxPatience) && 
-                     this.currentIteration < this.maxIterations);
-
-            return allData;
-        } catch (error) {
-            console.error(`[DYNAMIC LOADING ERROR] ${new Date().toISOString()} - ${error.message}`);
-            return [];
+            }
+            
+            // Add a longer pause every 3 iterations to avoid rate limiting
+            if (iteration % 3 === 0) {
+                console.log('Taking a longer break to avoid rate limiting...');
+                await new Promise(resolve => setTimeout(resolve, 8000));
+            }
         }
+        
+        console.log(`Extraction complete. Found ${bookmarks.length} bookmarks.`);
+        return bookmarks;
+    }
+
+    // Alias method to match the call in the main execution code
+    async loadAllContent() {
+        return this.loadBookmarks();
+    }
+
+    async scrollPage() {
+        window.scrollBy(0, window.innerHeight / 2); // Scroll half a page to be less aggressive
+    }
+
+    mergeBookmarks(existingBookmarks, newBookmarks) {
+        // Create a map of existing URLs for quick lookup
+        const existingUrls = new Set(existingBookmarks.map(b => b.url));
+        
+        // Filter out duplicates from new bookmarks
+        const uniqueNewBookmarks = newBookmarks.filter(bookmark => !existingUrls.has(bookmark.url));
+        
+        // Return combined array
+        return [...existingBookmarks, ...uniqueNewBookmarks];
     }
 }
 
-// Modified version of your existing code to work as content script
 (async () => {
     try {
         console.log('Starting bookmark extraction...');
@@ -173,19 +203,14 @@ class DynamicLoader {
         
         statusDiv.textContent = `Extracted ${allData.length} bookmarks. Saving...`;
         
-        // Save data to Chrome storage - ACTUALLY CALL THE FUNCTION
+        // Save data to Chrome storage only - removed CSV functionality
         await saveData(allData);
         
-        // Also save as CSV for backup
-        const blob = new Blob([convertToCSV(allData)], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        
-        // Trigger download
-        chrome.runtime.sendMessage({
-            action: 'download',
-            filename: `bookmarks_${new Date().toISOString().replace(/:/g, '-')}.csv`,
-            url: url
-        });
+        // Update status message
+        statusDiv.textContent = `Saved ${allData.length} bookmarks to Chrome storage.`;
+        setTimeout(() => {
+            statusDiv.remove();
+        }, 3000);
         
     } catch (error) {
         console.error('Error:', error);
@@ -194,25 +219,44 @@ class DynamicLoader {
 })();
 
 // Update the saveData function in your content.js
+// Update the saveData function to use chrome.storage.local instead of IndexedDB
 async function saveData(data) {
     try {
-        // Send data to background script for storage
+        // Save directly to chrome.storage.local instead of sending to background script
         return new Promise((resolve, reject) => {
-            chrome.runtime.sendMessage({
-                action: 'saveBookmarks',
-                bookmarks: data
-            }, response => {
-                console.log('Bookmarks saved to Chrome storage:', response);
+            // Get existing bookmarks first
+            chrome.storage.local.get(['allBookmarks'], (result) => {
+                const existingBookmarks = result.allBookmarks || [];
                 
-                // Update status message
-                const statusDiv = document.querySelector('[data-wasurenbo-status]');
-                if (statusDiv) {
-                    statusDiv.textContent = `Saved ${data.length} bookmarks to Chrome storage.`;
-                    setTimeout(() => {
-                        statusDiv.remove();
-                    }, 3000);
-                }
-                resolve(response);
+                // Merge with new bookmarks (avoiding duplicates)
+                const existingUrls = new Set(existingBookmarks.map(b => b.url));
+                const uniqueNewBookmarks = data.filter(bookmark => !existingUrls.has(bookmark.url));
+                const allBookmarks = [...existingBookmarks, ...uniqueNewBookmarks];
+                
+                // Store in chrome.storage.local
+                chrome.storage.local.set({
+                    allBookmarks: allBookmarks,
+                    totalBookmarkCount: allBookmarks.length,
+                    lastUpdated: new Date().toISOString()
+                }, () => {
+                    if (chrome.runtime.lastError) {
+                        console.error('Error saving to chrome.storage.local:', chrome.runtime.lastError);
+                        reject(chrome.runtime.lastError);
+                    } else {
+                        console.log(`Saved ${uniqueNewBookmarks.length} new bookmarks, total: ${allBookmarks.length}`);
+                        
+                        // Update status message
+                        const statusDiv = document.querySelector('[data-wasurenbo-status]');
+                        if (statusDiv) {
+                            statusDiv.textContent = `Saved ${uniqueNewBookmarks.length} new bookmarks (total: ${allBookmarks.length})`;
+                            setTimeout(() => {
+                                statusDiv.remove();
+                            }, 3000);
+                        }
+                        
+                        resolve({ added: uniqueNewBookmarks.length, total: allBookmarks.length });
+                    }
+                });
             });
         });
     } catch (error) {

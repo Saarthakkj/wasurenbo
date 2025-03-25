@@ -1,14 +1,22 @@
-document.getElementById('extractButton').addEventListener('click', async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    if (tab.url.includes('x.com/i/bookmarks')) {
-        chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            files: ['content.js']
+document.addEventListener('DOMContentLoaded', function() {
+  // Toggle bookmark display button
+  document.getElementById('toggleBookmark').addEventListener('click', function() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleBookmarkVisibility'});
+    });
+  });
+  
+  // Get new random bookmark button
+  document.getElementById('refreshBookmark').addEventListener('click', function() {
+    chrome.runtime.sendMessage({action: 'getRandomBookmark'}, function(response) {
+      if (response && response.success) {
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'displayBookmark',
+            bookmark: response.bookmark
+          });
         });
-        window.close(); // Close the popup after initiating the extraction
-    } else {
-        document.querySelector('p').textContent = 'Please navigate to X Bookmarks page first!';
-        document.querySelector('p').style.color = 'red';
-    }
+      }
+    });
+  });
 });

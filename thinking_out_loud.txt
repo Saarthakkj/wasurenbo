@@ -1,0 +1,27 @@
+- wasurebo 
+	-- workflow : navigate to : https://x.com/i/bookmarks (or automatically?) -> use DOM to extract bookmarks [contents , URLs, images(??)] -> simulates scrolling to dynamically load more bookmarks -> continues extracting until all -> extracted bookmarks are stored in csv/json (local storage??) -> fetch it randomly a day and add a side-div-element for this(??)
+
+	-- how to store the file?
+		--- if it is large? -> (??)
+			---- csv 
+		--- if it is small? -> chrome storage sync [working for now]
+
+	-- random function to show a bookmark: 
+		--- const randomIndex = Math.floor(Math.random() * bookmarks.length);
+			const selectedBookmark = bookmarks[randomIndex];
+	-- yes, changes daily. 
+		---chrome.alarms.create('dailyBookmark', {
+			  periodInMinutes: 1440 // Once per day (60 min * 24 hours)
+			});
+
+
+	-- problems
+		--- webhook for detecting new bookmarks[have to intercept network request for "createBookmark"]
+			---- how to deal with deletebookmarks??? {no network requests!!}
+		--- large number of bookmarks [>100 would fail the chrome storage]
+		--- dynamically changing bookmarks. [un-bookmarked a tweet]
+
+	--additions : 
+		--- also , put your gemini api key to to render a perfect search result on this div element. [more links  related to this tweet]
+
+
