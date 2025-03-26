@@ -27,7 +27,7 @@ class DataExtractor {
             tweetText: '[data-testid="tweetText"]',
             // Target the tweet URL (which appears in the timestamp link)
             tweetUrl: 'a[href*="/status/"]',
-            // Target actual tweet images, not profile pictures
+                // Target actual tweet images, not profile pictures
             tweetImages: 'div[data-testid="tweetPhoto"] img',
             // Target retweet information
             retweetIndicator: '[data-testid="socialContext"]',
